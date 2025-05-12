@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Universo 3D Simulado</title>
+  <style>
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: black;
+    }
+
+    canvas {
+      display: block;
+      cursor: crosshair;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="espaco" style="position: absolute; top: 0; left: 0;"></canvas>
+
+  <div style="position: absolute; top: 0; left: 0; z-index: 999; pointer-events: none; width: 100vw; height: 100vh;">
+    <img src="./src/cabine-.png" alt="cabine"
+         style="width: 100vw; height: 100vh; object-fit: cover; transform: scale(1.2);
+" />
+  </div>
+  
+  <script>
+    window.localStorage.clear();
+    const canvas = document.getElementById("espaco");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let estrelas = [];
+    let mostrarNomes = true;
+    const total = 2000;
+    const fov = 400;
+    let camX = 0, camY = 0, camZ = 0;
+    let rotX = 0, rotY = 0;
+
+    const cores = ["white", "#88f", "#f88", "#8f8", "#ff8", "#8ff"];
+
+    function gerarEstrelaPosAleatoria() {
+      const dist = 5000 + Math.random() * 500000;
+      const letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+      const nome = letras[Math.floor(Math.random() * letras.length)]
+        + letras[Math.floor(Math.random() * letras.length)]
+        + letras[Math.floor(Math.random() * letras.lfength)]
+        + "-" + Math.floor(Math.random() * 100_000);
+
+
+      const mover = Math.random() < 0.2; // 20% das estrelas se movem
+      const starSpeed = 0;
+      const velocidade = mover
+        ? { x: (Math.random() - 0.5) * starSpeed, y: (Math.random() - 0.5) * starSpeed, z: (Math.random() - 0.5) * starSpeed }
+        : { x: 0, y: 0, z: 0 };
+
+      return {
+        x: (Math.random() - 0.5) * dist + camX,
+        y: (Math.random() - 0.5) * dist + camY,
+        z: (Math.random() - 0.5) * dist + camZ,
+        cor: Math.random() < 0.8 ? 'white' : cores[Math.floor(Math.random() * (cores.length - 1)) + 1],
+        nome: nome,
+        tamanho: 0.5 + Math.random() * 200,
+        velocidade: velocidade,
+        raioReal: 200 + Math.random() * 800 // por exemplo, entre 200 e 1000 unidades
+      };
+    }
+
+
+
+    function salvarEstrelas() {
+      localStorage.setItem("estrelas", JSON.stringify(estrelas));
+    }
+
+    function carregarEstrelas() {
+      const salvas = localStorage.getItem("estrelas");
+      if (salvas) {
+        estrelas = JSON.parse(salvas);
+      }
+      if (!estrelas || estrelas.length === 0) {
+        for (let i = 0; i < total; i++) {
+          estrelas.push(gerarEstrelaPosAleatoria());
+        }
+        salvarEstrelas();
+      }
+    }
+
+    carregarEstrelas();
+
+    let movementCounter = 0;
+    const teclas = {};
+    document.addEventListener("keydown", e => teclas[e.key.toLowerCase()] = true);
+    document.addEventListener("keyup", e => teclas[e.key.toLowerCase()] = false);
+
+    canvas.addEventListener("click", () => {
+      canvas.requestPointerLock();
+    });
+
+    document.addEventListener("mousedown", (e) => {
+      if (e.button === 0) { // botão esquerdo
+        checarEstrelaCentral();
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      teclas[e.key.toLowerCase()] = true;
+
+      if (e.key.toLowerCase() === "n") {
+        mostrarNomes = !mostrarNomes;
+        console.log("🛈 Nomes das estrelas:", mostrarNomes ? "ativados" : "desativados");
+      }
+
+      if (e.key.toLowerCase() === "l") {
+        estrelas = [];
+        console.log("🧹 Todas as estrelas foram removidas.");
+      }
+    });
+
+
+    document.addEventListener("pointerlockchange", () => {
+      if (document.pointerLockElement === canvas) {
+        document.addEventListener("mousemove", onMouseMove);
+      } else {
+        document.removeEventListener("mousemove", onMouseMove);
+      }
+    });
+
+    function onMouseMove(e) {
+      rotY += e.movementX * 0.0002;
+      rotX += e.movementY * 0.0002;
+      rotX = Math.max(Math.min(rotX, Math.PI / 2), -Math.PI / 2);
+    }
+
+    function update() {
+      const baseSpeed = 2;
+      const speed = (teclas["shift"] || teclas["Shift"]) ? baseSpeed * 20 : baseSpeed;
+      const forward = teclas["w"] ? 1 : teclas["s"] ? -1 : 0;
+      const strafe = teclas["a"] ? -1 : teclas["d"] ? 1 : 0;
+      const vertical = teclas["arrowup"] ? -1 : teclas["arrowdown"] ? 1 : 0;
+
+      let moved = false;
+
+      const cosRotX = Math.cos(rotX);
+      const sinRotX = Math.sin(rotX);
+      const cosRotY = Math.cos(rotY);
+      const sinRotY = Math.sin(rotY);
+
+      if (forward !== 0) {
+        camX += sinRotY * cosRotX * speed * forward;
+        camY += sinRotX * speed * forward;
+        camZ += cosRotY * cosRotX * speed * forward;
+        moved = true;
+      }
+
+      if (strafe !== 0) {
+        camX += cosRotY * speed * strafe;
+        camZ -= sinRotY * speed * strafe;
+        moved = true;
+      }
+
+      if (vertical !== 0) {
+        camY += speed * vertical;
+        moved = true;
+      }
+
+      for (let i = 0; i < estrelas.length; i++) {
+        const estrela = estrelas[i];
+        const dx = estrela.x - camX;
+        const dy = estrela.y - camY;
+        const dz = estrela.z - camZ;
+        const rotated = rotate(dx, dy, dz);
+
+        if (!isFinite(rotated.z) || rotated.z > 100000) {
+          estrelas[i] = gerarEstrelaPosAleatoria();
+        }
+      }
+
+      if (moved) {
+        movementCounter++;
+        if (movementCounter > 80) {
+          //estrelas.push(gerarEstrelaPosAleatoria());
+          salvarEstrelas();
+          movementCounter = 0;
+        }
+      }
+
+      for (let estrela of estrelas) {
+        estrela.x += estrela.velocidade?.x;
+        estrela.y += estrela.velocidade?.y;
+        estrela.z += estrela.velocidade?.z;
+      }
+
+      // Reposiciona estrelas que se afastaram demais
+      estrelas = estrelas.map(e => {
+        const dx = e.x - camX;
+        const dy = e.y - camY;
+        const dz = e.z - camZ;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (dist > 150000) {
+          return gerarEstrelaPosAleatoria(); // substitui por nova
+        }
+        return e;
+      });
+
+    }
+
+    function rotate(x, y, z) {
+      const cosY = Math.cos(rotY);
+      const sinY = Math.sin(rotY);
+      let x1 = x * cosY - z * sinY;
+      let z1 = x * sinY + z * cosY;
+
+      const cosX = Math.cos(rotX);
+      const sinX = Math.sin(rotX);
+      let y1 = y * cosX - z1 * sinX;
+      let z2 = y * sinX + z1 * cosX;
+
+      return { x: x1, y: y1, z: z2 };
+    }
+
+    function desenhar() {
+
+      // Calcular posições rotacionadas antes de desenhar
+      const estrelasProjetadas = estrelas.map(estrela => {
+        const dx = estrela.x - camX;
+        const dy = estrela.y - camY;
+        const dz = estrela.z - camZ;
+        const { x: rx, y: ry, z: rz } = rotate(dx, dy, dz);
+
+        return {
+          ...estrela,
+          rx,
+          ry,
+          rz
+        };
+      });
+
+      // Ordenar da mais distante para a mais próxima (maior rz primeiro)
+      const ordenadas = estrelasProjetadas.sort((a, b) => b.rz - a.rz);
+
+      // Agora desenha normalmente
+      ctx.fillStyle = "black";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (let estrela of ordenadas) {
+        if (estrela.rz <= 1 || !isFinite(estrela.rz)) continue;
+
+        const k = fov / estrela.rz;
+        if (!isFinite(k)) continue;
+
+        const x = estrela.rx * k + canvas.width / 2;
+        const y = estrela.ry * k + canvas.height / 2;
+        const r = estrela.raioReal * (fov / estrela.rz);
+
+        if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
+          ctx.beginPath();
+          const gradiente = ctx.createRadialGradient(x, y, 0, x, y, r);
+          gradiente.addColorStop(0, estrela.cor);
+          gradiente.addColorStop(1, "transparent");
+
+          ctx.fillStyle = gradiente;
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fill();
+
+          // nome da estrela
+          if (mostrarNomes) {
+            ctx.font = "12px sans-serif";
+            ctx.fillStyle = "#ccc";
+            ctx.textAlign = "center";
+            ctx.fillText(estrela.nome, x, y - r - 5);
+          }
+
+        }
+      }
+
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 1.4;
+
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const size = 8;
+
+      ctx.beginPath();
+      ctx.moveTo(centerX - size, centerY);
+      ctx.lineTo(centerX + size, centerY);
+      ctx.moveTo(centerX, centerY - size);
+      ctx.lineTo(centerX, centerY + size);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#FFFFFF";
+      ctx.lineWidth = 1.2;
+
+      ctx.beginPath();
+      ctx.moveTo(centerX - size, centerY);
+      ctx.lineTo(centerX + size, centerY);
+      ctx.moveTo(centerX, centerY - size);
+      ctx.lineTo(centerX, centerY + size);
+      ctx.stroke();
+
+    }
+
+    function checarEstrelaCentral() {
+      const centroX = canvas.width / 2;
+      const centroY = canvas.height / 2; let estrelaAlvo = null;
+      let menorDistancia = Infinity;
+
+      for (let estrela of estrelas) {
+        const dx = estrela.x - camX;
+        const dy = estrela.y - camY;
+        const dz = estrela.z - camZ;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        // ⚠️ se quiser considerar só o que está no centro da tela:
+        const { x: rx, y: ry, z: rz } = rotate(dx, dy, dz);
+        const k = fov / rz;
+        const x = rx * k + canvas.width / 2;
+        const y = ry * k + canvas.height / 2;
+        const distTela = Math.hypot(x - centroX, y - centroY);
+
+        if (distTela < 10 && rz > 0 && dist < menorDistancia) {
+          menorDistancia = dist;
+          estrelaAlvo = estrela;
+        }
+      }
+
+      if (estrelaAlvo) {
+        estrelaAlvo.cor = "red";
+        estrelaAlvo.nome = "Selecionada!";
+        console.log("🎯 Estrela selecionada:", estrelaAlvo.nome);
+      } else {
+        console.log("❌ Nenhuma estrela no centro.");
+      }
+    }
+
+
+    function loop() {
+      update();
+      desenhar();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+  </script>
+</body>
+
+</html>
