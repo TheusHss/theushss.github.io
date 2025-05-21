@@ -37,6 +37,10 @@
       overflow-x: hidden;
     }
 
+    body.no-scroll {
+      overflow: hidden;
+    }
+
     body {
       display: flex;
       flex-direction: column;
@@ -509,6 +513,7 @@
 
   <script>
 
+    document.body.classList.add('no-scroll'); // bloqueia o scroll
 
     const fruitsA = ["🍎", "🍒", "🥕", "🌽", "🍦", "🍉"];
     const fruitsB = ["🍍", "🍇", "🍓", "🥭", "🍊", "🥝"];
@@ -618,7 +623,7 @@
       document.getElementById("home-screen").style.display = "flex";
       document.getElementById("last-score").textContent = `Última pontuação: ${score}`;
     }
-    
+
     function startTimer() {
       clearInterval(timerInterval);
       time = 120 - (currentLevel * 2);
