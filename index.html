@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <title>Match Tile - Combine agora! </title>
+  <style>
+    @keyframes explode {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(1.5);
+        opacity: 0;
+      }
+    }
+
+    .tile.exploding {
+      animation: explode 0.5s ease-out forwards;
+      pointer-events: none;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom, #ffcc70, #ff6f61);
+      background-image: url("horta.png");
+      background-size: cover;
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    #hud {
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    #score,
+    #timer {
+      font-size: 18px;
+      font-weight: bold;
+      margin: 5px;
+    }
+
+    .placeholder {
+      visibility: hidden;
+    }
+
+    .selected-tile {
+      outline: 2px solid gold;
+      opacity: 0.8;
+    }
+
+    .selected {
+      outline: 2px solid gold;
+      transform: scale(1.1);
+    }
+
+    .shake {
+      animation: shake 0.4s;
+    }
+
+    .wrong {
+      background-color: #ff6666 !important;
+    }
+
+    @keyframes shake {
+      0% {
+        transform: translateX(0px);
+      }
+
+      25% {
+        transform: translateX(-5px);
+      }
+
+      50% {
+        transform: translateX(5px);
+      }
+
+      75% {
+        transform: translateX(-5px);
+      }
+
+      100% {
+        transform: translateX(0px);
+      }
+    }
+
+    .game-container {
+      background-color: rgba(255, 255, 255, 0.6);
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #home-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      color: #fff;
+    }
+
+    #home-screen h1 {
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+
+    #home-screen button {
+      font-size: 18px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background-color: #fff;
+      color: #333;
+      cursor: pointer;
+    }
+
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(50px, 1fr));
+      gap: 8px;
+      max-width: 100vw;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+
+    .tile[data-fruit="⏰"] {
+      animation: pulse 1s infinite;
+      background-color: gold;
+    }
+
+
+    .tile {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: rgb(251, 250, 233);
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: min(8vw, 30px);
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.3s;
+      border-right: solid 4px rgb(239, 238, 216);
+      border-bottom: solid 4px rgb(239, 238, 216);
+    }
+
+
+    .drag-clone {
+      width: 70px;
+      height: 70px;
+      font-size: 30px;
+    }
+
+    #selection-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 60px;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    #footer-button {
+      text-align: center;
+    }
+
+    .home-icon {
+      font-size: 24px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #333;
+    }
+
+    #last-score {
+      margin-top: 10px;
+      font-size: 16px;
+      color: white;
+    }
+
+    #progress-bar-container {
+      width: 100%;
+      height: 10px;
+      background: #eee;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+
+    #progress-bar {
+      height: 100%;
+      background: #ff3333;
+      border-radius: 5px;
+      transition: width 1s linear;
+    }
+
+    .home-icon {
+      background: white;
+      border-radius: 50%;
+      padding: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s;
+    }
+
+    .home-icon:hover {
+      transform: scale(1.1);
+    }
+
+    .acabou {
+      position: absolute;
+      width: 80%;
+      height: 50%;
+
+      background-size: cover;
+    }
+
+    button {
+      font-size: 1rem;
+    }
+
+    h2,
+    h3 {
+      color: white;
+      background-color: rgba(0, 0, 0, 0.138);
+    }
+
+    #trophy-path {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(50px, 1fr));
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px 0;
+      flex-wrap: wrap;
+    }
+
+    .level {
+      width: 50px;
+      height: 50px;
+      font-size: 30px;
+      background: linear-gradient(90deg, #f0c27b, #4b1248, #f0c27b);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      cursor: default;
+      filter: grayscale(100%);
+      animation: shine 2s linear infinite;
+    }
+
+    @keyframes shine {
+      0% {
+        background-position: 200% center;
+      }
+
+      100% {
+        background-position: -200% center;
+      }
+    }
+
+    /* efeito de delay progressivo entre os levels */
+    .level:nth-child(1) {
+      animation-delay: 0s;
+    }
+
+    .level:nth-child(3) {
+      animation-delay: 0.2s;
+    }
+
+    .level:nth-child(5) {
+      animation-delay: 0.4s;
+    }
+
+    .level:nth-child(7) {
+      animation-delay: 0.6s;
+    }
+
+    .level:nth-child(9) {
+      animation-delay: 0.8s;
+    }
+
+    .level:nth-child(11) {
+      animation-delay: 1.0s;
+    }
+
+    .level:nth-child(13) {
+      animation-delay: 1.2s;
+    }
+
+    .level:nth-child(15) {
+      animation-delay: 1.4s;
+    }
+
+    .level:nth-child(17) {
+      animation-delay: 1.6s;
+    }
+
+    .level:nth-child(19) {
+      animation-delay: 1.8s;
+    }
+
+    .level:nth-child(21) {
+      animation-delay: 2.0s;
+    }
+
+    .level:nth-child(23) {
+      animation-delay: 2.2s;
+    }
+
+    .level:nth-child(25) {
+      animation-delay: 2.4s;
+    }
+
+    .level.unlocked {
+      background: gold;
+      filter: none;
+    }
+
+    .level.unlocked.yellow {
+      background-color: yellow;
+    }
+
+    .level.unlocked.blue {
+      background-color: blue;
+    }
+
+    .level.unlocked.red {
+      background-color: red;
+    }
+
+    .level.unlocked.green {
+      background-color: green;
+    }
+
+    .level.unlocked.pink {
+      background-color: pink;
+    }
+
+    .level.unlocked.white {
+      background-color: white;
+    }
+
+    .level.unlocked.black {
+      background-color: black;
+      color: white;
+    }
+
+
+    .connector {
+      width: 30px;
+      height: 6px;
+      background: #ccc;
+      border-radius: 3px;
+    }
+
+    #start-btn {
+      font-size: 22px;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 15px;
+      background: linear-gradient(to right, #ffcc00, #ff6600);
+      color: #fff;
+      font-weight: bold;
+      box-shadow: 0 0 15px rgba(255, 140, 0, 0.6);
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      animation: pulseBtn 1.2s infinite ease-in-out;
+    }
+
+    #start-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 25px rgba(255, 160, 0, 0.9);
+    }
+
+    #start-btn:active {
+      transform: scale(0.97);
+      box-shadow: 0 0 8px rgba(255, 120, 0, 0.8);
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+      }
+
+      50% {
+        box-shadow: 0 0 20px rgba(255, 200, 0, 1);
+      }
+
+      100% {
+        box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+      }
+    }
+
+    @keyframes pulseBtn {
+      0% {
+        box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+      }
+
+      50% {
+        box-shadow: 0 0 20px rgba(255, 200, 0, 1);
+      }
+
+      100% {
+        box-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+      }
+    }
+
+    #score {
+      text-shadow: 1px 2px 1px rgba(255, 140, 0, 0.5);
+      ;
+      color: rgba(255, 200, 0, 1);
+      ;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="home-screen">
+    <h1>Match Tile</h1>
+    <div id="trophy-path">
+      <div class="level">🥇</div>
+      <div class="connector"></div>
+      <div class="level">🥇</div>
+      <div class="connector"></div>
+      <div class="level">🥇</div>
+      <div class=""></div>
+      <div class="level">🥇</div>
+      <div class="connector"></div>
+      <div class="level">🥇</div>
+      <div class=""></div>
+      <div class="level">🥇</div>
+      <div class="connector"></div>
+      <div class="level">🥇</div>
+      <div class="connector"></div>
+      <div class="level">🥇</div>
+      <div class=""></div>
+      <div class="level">🥇</div>
+      <div class="connector"></div>
+      <div class="level">🥇</div>
+      <div class=""></div>
+      <div class="level">🥇</div>
+      <div class="connector"></div>
+      <div class="level">🥇</div>
+      <div class="connector"></div>
+      <div class="level">🏆</div>
+    </div>
+
+    <div id="last-score"></div>
+    <button id="start-btn" onclick="startGame()">🎮 Iniciar Jogo</button>
+
+  </div>
+
+  <div id="end-screen" class="game-container acabou">
+    <h2 id="frase-end">Vitória!</h2>
+    <h3 id="final-score"></h3>
+    <button style="width: 100%;" onclick="goHome()">🏠 Voltar</button>
+  </div>
+
+  <audio id="erro" src="./warning-sound-6686.mp3" preload="auto"></audio>
+  <audio id="arrasto" src="./menu-button-190039.mp3" preload="auto"></audio>
+  <audio id="win" src="./win-176035.mp3" preload="auto"></audio>
+  <audio id="lost" src="./lost.mp3" preload="auto"></audio>
+  <audio id="bird" src="./birds-nature-relax-sounds-110839.mp3" preload="auto"></audio>
+  <audio id="ambiente" src="./ambience_farm_02wav-14806.mp3" preload="auto"></audio>
+
+  <div class="game-container" id="game-container">
+    <div id="hud">
+      <div id="score">Pontuação: 0</div>
+      <!-- <div id="timer">Tempo: 120</div> -->
+    </div>
+    <div id="progress-bar-container">
+      <div id="progress-bar"></div>
+    </div>
+
+    <div id="game-board"></div>
+    <div id="selection-bar"></div>
+    <div id="footer-button">
+      <button class="home-icon" onclick="goHome()">🏠</button>
+    </div>
+  </div>
+
+  <script>
+
+
+    const fruitsA = ["🍎", "🍒", "🥕", "🌽", "🍦", "🍉"];
+    const fruitsB = ["🍍", "🍇", "🍓", "🥭", "🍊", "🥝"];
+
+    let fruits = []
+
+    let draggedTile = null;
+    let placeholder = null;
+    let originalX = 0;
+    let originalY = 0;
+    let score = -10;
+    let time = 120;
+    let timerInterval = null;
+    let lastScore = 0;
+    let first = 0;
+    const cycleColors = ["yellow", "blue", "red", "green", "pink", "white", "black"];
+
+    let currentLevel = 0;
+    let cycle = 0;
+
+    const SPECIAL_TILE = "💣"; // bomba
+    const CLOCK_TILE = "⏰"; // tile especial que aumenta tempo
+
+    function unlockLevels(level) {
+      const unlockedLevels = document.querySelectorAll('.level');
+      unlockedLevels.forEach((el, index) => {
+        if (index < level) {
+          el.classList.add('unlocked');
+
+          // Remove classes de cor antigas
+          cycleColors.forEach(color => el.classList.remove(color));
+
+          // Adiciona a nova cor baseada no ciclo
+          const colorClass = cycleColors[cycle % cycleColors.length];
+          el.classList.add(colorClass);
+        }
+      });
+    }
+
+
+
+    iniciar()
+
+    document.onmousemove = () => {
+      iniciar();
+    };
+
+    function iniciar() {
+      if (first == 0) {
+        tocarSomLoop("bird")
+        tocarSomLoop("ambiente")
+        first = 1;
+      }
+    }
+
+    function showEndScreen() {
+      if (currentLevel % 13 === 0) {
+        cycle++;
+      }
+      if (score >= 800) {
+        currentLevel = currentLevel + 1;
+        salvarProgresso();
+        tocarSom("win");
+        document.getElementById("frase-end").innerText = 'Vitória';
+        document.getElementById("end-screen").style.backgroundImage = 'url("win.png")';
+        unlockLevels(currentLevel);
+      } else {
+        tocarSom("lost");
+        document.getElementById("frase-end").innerText = 'Foi quase!';
+        document.getElementById("end-screen").style.backgroundImage = 'url("lose.png")';
+      }
+      document.getElementById("game-container").style.display = "none";
+      document.getElementById("end-screen").style.display = "flex";
+      document.getElementById("final-score").textContent = "Sua pontuação: " + score + "/800";
+    }
+
+
+    window.onbeforeunload = function () {
+      if (document.getElementById("game-container").style.display === "flex") {
+        return "Você está no meio de uma partida. Tem certeza que deseja sair?";
+      }
+    };
+
+    function updateProgressBar() {
+      const percent = (time / 120) * 100;
+      document.getElementById("progress-bar").style.width = percent + "%";
+    }
+
+
+
+
+    function startGame() {
+      document.getElementById("home-screen").style.display = "none";
+      document.getElementById("game-container").style.display = "flex";
+      generateBoard();
+      iniciar();
+    }
+
+    function goHome() {
+      // if(currentLevel >= 4){
+      //   window.location.href = 
+      // }
+      score = 0;
+      document.getElementById("end-screen").style.display = "none";
+      clearInterval(timerInterval);
+      document.getElementById("game-container").style.display = "none";
+      document.getElementById("home-screen").style.display = "flex";
+      document.getElementById("last-score").textContent = `Última pontuação: ${score}`;
+    }
+    
+    function startTimer() {
+      clearInterval(timerInterval);
+      time = 120 - (currentLevel * 2);
+      // document.getElementById("timer").textContent = "Tempo: " + time;
+      timerInterval = setInterval(() => {
+        time--;
+        // document.getElementById("timer").textContent = "Tempo: " + time;
+        if (time <= 0) {
+          clearInterval(timerInterval);
+          showEndScreen()
+          lastScore = score;
+        }
+
+        updateProgressBar();
+      }, 1000);
+    }
+
+    function updateScore() {
+      score += 10;
+      document.getElementById("score").textContent = "" + score + "/800";
+    }
+
+    function generateBoard() {
+      const gameBoard = document.getElementById("game-board");
+      gameBoard.innerHTML = "";
+      document.getElementById("selection-bar").innerHTML = "";
+      score = 0;
+      updateScore();
+      startTimer();
+
+      const numeroA = Math.floor(Math.random() * 11); // de 0 a 10
+      const numeroB = Math.floor(Math.random() * 11); // de 0 a 10
+
+      if (numeroA % 2 === 0) {
+        fruits = fruitsA;
+      } else if (numeroB % 2 === 0) {
+        fruits = fruitsB;
+
+      }
+      else {
+        function getRandomSubset(array, size) {
+          const shuffled = [...array].sort(() => Math.random() - 0.5);
+          return shuffled.slice(0, size);
+        }
+
+        const fruitsA = ["🍎", "🍒", "🥕", "🌽", "🍦", "🍉"];
+        const fruitsB = ["🍍", "🍇", "🍓", "🥭", "🍊", "🥝"];
+
+        const halfA = getRandomSubset(fruitsA, Math.floor(fruitsA.length / 2));
+        const halfB = getRandomSubset(fruitsB, Math.floor(fruitsB.length / 2));
+
+        const fruits = [...halfA, ...halfB];
+
+
+
+      }
+
+
+      const totalTiles = 36;
+      const pairsPerFruit = Math.floor(totalTiles / fruits.length / 2) * 2;
+      let tilePool = [];
+
+      fruits.forEach(fruit => {
+        for (let i = 0; i < pairsPerFruit; i++) {
+          tilePool.push(fruit);
+        }
+      });
+
+      while (tilePool.length < totalTiles) {
+        const extraFruit = fruits[Math.floor(Math.random() * fruits.length)];
+        tilePool.push(extraFruit, extraFruit);
+      }
+
+      tilePool = tilePool.sort(() => Math.random() - 0.5);
+
+      tilePool.slice(0, totalTiles).forEach(fruit => {
+        const tile = createTile(fruit);
+        gameBoard.appendChild(tile);
+      });
+
+      if (Math.random() < 0.01) {
+        const randomIndex = Math.floor(Math.random() * gameBoard.children.length);
+        const tile = gameBoard.children[randomIndex];
+        const bombTile = createTile(SPECIAL_TILE);
+        tile.replaceWith(bombTile);
+      }
+
+      if (Math.random() < 0.05) {
+        const randomIndex = Math.floor(Math.random() * gameBoard.children.length);
+        const tile = gameBoard.children[randomIndex];
+        const clockTile = createTile(CLOCK_TILE);
+        tile.replaceWith(clockTile);
+      }
+    }
+
+    function addTime() {
+      startTimer()
+    }
+
+    function explodeAllTiles() {
+      const tiles = document.querySelectorAll("#game-board .tile");
+      let pontos = 0;
+
+      for (let index = 10; index < 10; index++) {
+        setTimeout(() => {
+          tocarSom("arrasto")
+
+        }, 10 * index);
+      }
+
+      tiles.forEach((tile, index) => {
+        const fruit = tile.dataset.fruit;
+        if (fruit && fruit !== SPECIAL_TILE) {
+          pontos += 5;
+
+          tile.classList.add("exploding");
+
+          setTimeout(() => {
+            const newFruit = fruits[Math.floor(Math.random() * fruits.length)];
+            const newTile = createTile(newFruit);
+            tile.replaceWith(newTile);
+          }, 500); // Tempo da animação
+        }
+      });
+
+      score += pontos;
+      document.getElementById("score").textContent = `${score}/800`;
+
+      tocarSom("arrasto");
+    }
+
+
+
+    function createTile(fruit) {
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      tile.textContent = fruit;
+      tile.dataset.fruit = fruit;
+
+      tile.addEventListener("touchstart", (e) => {
+
+        const touch = e.touches[0];
+        const rect = tile.getBoundingClientRect();
+        originalX = rect.left;
+        originalY = rect.top;
+
+        placeholder = document.createElement("div");
+        placeholder.className = "tile placeholder";
+        tile.parentNode.replaceChild(placeholder, tile);
+
+        draggedTile = tile.cloneNode(true);
+        draggedTile.classList.add("drag-clone");
+        draggedTile.style.position = "fixed";
+        draggedTile.style.left = rect.left + "px";
+        draggedTile.style.top = rect.top + "px";
+        draggedTile.style.zIndex = "1000";
+        draggedTile.style.pointerEvents = "none";
+        document.body.appendChild(draggedTile);
+      });
+
+      tile.addEventListener("touchmove", (e) => {
+        if (!draggedTile) return;
+        const touch = e.touches[0];
+        draggedTile.style.left = (touch.clientX - 35) + "px";
+        draggedTile.style.top = (touch.clientY - 35) + "px";
+      });
+
+      tile.addEventListener("touchend", (e) => {
+        const touch = e.changedTouches[0];
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+
+        if (target && target.classList.contains("tile") && target !== draggedTile) {
+          if (target.textContent === SPECIAL_TILE || draggedTile.textContent === SPECIAL_TILE) {
+            explodeAllTiles();
+            draggedTile.remove();
+            replaceTile(placeholder);
+          } else if (target.textContent === CLOCK_TILE || draggedTile.textContent === CLOCK_TILE) {
+            addTime();
+            draggedTile.remove();
+            replaceTile(placeholder);
+          } else if (target.dataset.fruit === draggedTile.dataset.fruit) {
+            replaceTile(target);
+            draggedTile.remove();
+            replaceTile(placeholder);
+            updateScore();
+          } else {
+            shakeTiles(draggedTile, target);
+            returnDraggedTile(tile);
+          }
+        } else {
+          returnDraggedTile(tile);
+        }
+
+      });
+
+      // tile.addEventListener("click", () => {
+      //   if (!draggedTile) {
+      //     draggedTile = tile;
+      //     tile.classList.add("selected");
+      //   } else if (draggedTile === tile) {
+      //     tile.classList.remove("selected");
+      //     draggedTile = null;
+      //   } else {
+      //     if (tile.dataset.fruit === draggedTile.dataset.fruit) {
+      //       replaceTile(tile);
+      //       replaceTile(draggedTile);
+      //       updateScore();
+      //     } else {
+      //       shakeTiles(tile, draggedTile);
+      //     }
+      //     draggedTile.classList.remove("selected");
+      //     draggedTile = null;
+      //   }
+      // });
+
+      if (fruit === SPECIAL_TILE) {
+        tile.style.background = "radial-gradient(circle, red, darkred)";
+        tile.style.color = "white";
+        tile.style.fontSize = "35px";
+      }
+
+      return tile;
+    }
+
+    function replaceTile(tileElement) {
+      if (score >= 800) {
+        time = 1;
+      }
+
+      tocarSom("arrasto");
+
+      let newFruit;
+
+      if (Math.random() < 0.01) {
+        newFruit = SPECIAL_TILE;
+      } else {
+        do {
+          newFruit = fruits[Math.floor(Math.random() * fruits.length)];
+        } while (newFruit === tileElement.dataset.fruit); // evita repetir a mesma fruta
+      }
+
+      if (Math.random() < 0.01) {
+        newFruit = CLOCK_TILE;
+      } else {
+        do {
+          newFruit = fruits[Math.floor(Math.random() * fruits.length)];
+        } while (newFruit === tileElement.dataset.fruit); // evita repetir a mesma fruta
+      }
+
+      const newTile = createTile(newFruit);
+      tileElement.parentNode.replaceChild(newTile, tileElement);
+    }
+
+
+    function salvarProgresso() {
+      localStorage.setItem("progresso", currentLevel);
+      localStorage.setItem("cycle", cycle);
+    }
+
+
+
+    function carregarProgresso() {
+
+      const progressoSalvo = localStorage.getItem("progresso");
+      if (progressoSalvo !== null) {
+        currentLevel = parseInt(progressoSalvo);
+      }
+
+      const cicloSalvo = localStorage.getItem("cycle");
+      if (cicloSalvo !== null) {
+        cycle = parseInt(cicloSalvo);
+      }
+
+      unlockLevels(currentLevel);
+    }
+
+
+    function tocarSom(id) {
+      const base = document.getElementById(id);
+      if (!base) return;
+      const clone = base.cloneNode();
+      clone.play();
+    }
+
+    function tocarSomLoop(id) {
+      const base = document.getElementById(id);
+      if (!base) return;
+      const clone = base.cloneNode();
+      clone.loop = true;
+      clone.play();
+    }
+
+    function returnDraggedTile(originalTile) {
+
+      if (placeholder && draggedTile) {
+        draggedTile.remove();
+        placeholder.parentNode.replaceChild(originalTile, placeholder);
+        placeholder = null;
+        draggedTile = null;
+      }
+    }
+
+    function shakeTiles(t1, t2) {
+      tocarSom("erro");
+      [t1, t2].forEach(tile => {
+        tile.classList.add("shake", "wrong");
+        setTimeout(() => {
+          tile.classList.remove("shake", "wrong", "selected");
+        }, 500);
+      });
+    }
+
+    carregarProgresso();
+
+  </script>
+</body>
+
+</html>
